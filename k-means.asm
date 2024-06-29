@@ -372,3 +372,243 @@ kmeansEnd:
     lw ra, 0(sp)             
     addi sp, sp, 4
     jr ra
+
+### initializeCentroids
+# Inicializa os centroides com coordenadas pseudo-aleatorias
+# Argumentos: nenhum
+# Retorno: nenhum
+
+initializeCentroids:
+    addi sp, sp, -4
+    sw ra, 0(sp)
+    mv t0, s0                       # Passar o valor de k do s0 para t0
+    la t1, centroids
+
+initializeCentroids_loop:
+    beqz t0, initializeCentroids_end
+    jal generate_random      
+    sw a0, 0(t1)                    # Valor do x
+    jal generate_random
+    sw a0, 4(t1)                    # Valor do y
+    addi t1, t1, 8                  # Proximo par de coordenadas
+    addi t0, t0, -1                 # k-1
+    j initializeCentroids_loop
+
+initializeCentroids_end:
+    lw ra, 0(sp)             
+    addi sp, sp, 4 
+    jr ra                           # Voltar para a funcao mainKMeans
+
+generate_random:
+    li a7, 30                       # Numero da chamada do sistema (time_msec)
+    ecall                           # Executar a chamada do sistema
+    andi a0, a0, 0x1F               # Isolar os ultimos 5 bits para que esteja entre 0 e 31
+    jr ra                           # Voltar para initializeCentroids_loop
+
+
+### manhattanDistance
+# Calcula a distancia de Manhattan entre (x0,y0) e (x1,y1)
+# Argumentos:
+# a0, a1: x0, y0
+# a2, a3: x1, y1
+# Retorno:
+# a0: distance
+
+manhattanDistance:
+    sub t0, a0, a2                  # (x0-x1)
+    sub t1, a1, a3                  # (y0-y1)
+    # Encontra |x0-x1|
+    bge t0, x0, continue
+    neg t0, t0
+
+continue:
+    # Encontra |y0-y1|
+    bge t1, x0, continue_2
+    neg t1, t1
+
+continue_2: 
+    add a0, t0, t1                  # |dx|+|dy|
+    jr ra
+
+### nearestCluster
+# Determina o centroide mais perto de um dado ponto (x,y)
+# Argumentos:
+# a0, a1: (x, y) point
+# Retorno:
+# a0: cluster index
+
+nearestCluster:
+    # Guarda o retorno de nearestCluster
+    addi sp, sp, -8
+    sw ra, 0(sp)
+    sw a0, 4(sp)
+
+    li t6, 0x3E                      # Inicial maior distancia (|31-0|+|31-0|)
+    li t5, 0                         # Index do cluster mais proximo a retornar
+
+    li t2, 0                         # Index do cluster atual
+    la s2, k
+    lw s2, 0(s2)
+
+    la s1, centroids
+
+minDistanceLoop:
+    beq t2, s2, minDistanceEnd       # Terminar depois de testar com todos os clusters
+    
+    # Carregar coordenadas do centroide atual
+    lw a2, 0(s1)                     # x do centroide
+    lw a3, 4(s1)                     # y do centroide
+
+    jal manhattanDistance
+    mv t4, a0                        # Guardar a distancia atual 
+    lw a0, 4(sp)                     # Recuperar coordenada
+
+    blt t4, t6, assignDistance       # Se distancia atual < distancia anterior
+
+contMinDistanceLoop:
+    addi s1, s1, 8                   # Proximas coordenadas de centroide
+    addi t2, t2, 1                   # Proximo index de cluster
+    j minDistanceLoop
+
+assignDistance:
+    mv t6, t4                        # Atualizar a menor distancia
+    mv t5, t2                        # Atualizar index de cluster com a menor distancia
+    j contMinDistanceLoop
+
+minDistanceEnd:
+
+    # Retornar nearestCluster
+    mv a0, t5
+    lw ra, 0(sp)             
+    addi sp, sp, 8
+    jr ra
+
+### assignCluster
+# Atribui a cada ponto o centroide mais proximo
+# Argumentos: nenhum
+# Retorno: nenhum
+
+assignCluster:
+
+    # Guardar o retorno de assignCluster
+    addi sp, sp, -4
+    sw ra, 0(sp)
+    
+    # Inicializar variaveis
+    lw s9, n_points
+    la s8, points
+    la s7, clusters
+
+assignClusterLoop:
+    beq s9, x0, assignClusterEnd       # Se iterou todos os pontos, terminar
+    
+    # Chamar nearestCluster para retornar indice do ponto atual 
+    lw a0, 0(s8)
+    lw a1, 4(s8)
+    jal nearestCluster
+    sw a0, 0(s7)
+    
+    # Passar para o proximo ponto sem cluster atualizado
+    addi s9, s9, -1
+    addi s8, s8, 8
+    addi s7, s7, 4
+    j assignClusterLoop
+
+assignClusterEnd:
+    
+    # Retorna assignCluster
+    lw ra, 0(sp)             
+    addi sp, sp, 4
+    jr ra
+
+### CopyCentroids
+# Copia os centroids atuais para oldCentroids
+# Arguments: nenhum
+# Returns: nenhum
+
+CopyCentroids:
+
+    la t0, centroids
+    la s1, oldCentroids
+    lw s2, k
+    li t1, 0                            # Contador de centroids
+
+CopyCentroids_loop:
+
+    beq t1, s2, CopyCentroids_end
+
+    lw t4, 0(t0)                        # Carregar x de centroids
+    sw t4, 0(s1)                        # Guardar x em oldCentroids
+    lw t4, 4(t0)                        # Carregar y from centroids
+    sw t4, 4(s1)                        # Guardar y de oldCentroids
+
+    addi t0, t0, 8                      # Avancar no centroids
+    addi s1, s1, 8                      # Avancar no old_centroids
+    addi t1, t1, 1                      # Incrementar contador
+
+    j CopyCentroids_loop
+
+CopyCentroids_end:
+    jr ra
+
+### CompareCentroids
+# Verifica se dois vetores sao iguais
+# Arguments: nenhum
+# Returns: nenhum
+
+CompareCentroids:
+    la t0, centroids
+    la s1, oldCentroids
+    lw s2, k
+    li t1, 0
+    li a4, 1                            # Retorno da funcao: 1 sao diferentes, 0 sao iguais
+
+CompareCentroids_loop:
+
+    beq t1, s2, Equal                   # Se percorreu todos os valores e sao iguais
+    
+    lw t2, 0(t0)
+    lw t3, 0(s1)
+    bne t2, t3, NotEqual                # Se algum valor no vetor e diferente, nao sao iguais e continuar
+
+    addi t0, t0, 4
+    addi s1, s1, 4
+    addi t1, t1, 1
+
+    j CompareCentroids_loop
+
+NotEqual:
+    jr ra
+
+Equal:
+    li a4, 0                            # Sao iguais, deve terminar o algoritmo
+    jr ra
+
+
+### cleanScreen2
+# Limpa apenas os pontos pintados/iluminados
+# Argumentos: nenhum
+# Retorno: nenhum
+
+# OPTIMIZATION: Limpar apenas os centroides representados apos cada iteracao. Nao e 
+#               necessario o cleanscreen inicial, pois o resto, coordenadas nao ocupadas
+#               por pontos ou centroids, ja estao limpas. Propomos tambem nao eliminar os pontos
+#               a cada iteracao, tendo em conta que acabarao sempre pintados, minimizando os custos
+#               de memória e tempo.
+        
+cleanScreen2:
+    # Save return address
+    addi sp, sp, -4
+    sw ra, 0(sp)
+
+    # Load the color for clearing points
+    li a2, WHITE                         # Cor para limpar o ponto
+
+    # Limpar centroids
+    la s0, oldCentroids            
+    lw s1, k                   
+    jal printArray                       # Pintar vetor oldcentroids de branco
+
+    lw ra, 0(sp)
+    addi sp, sp, 4
+    jr ra                    
