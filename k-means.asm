@@ -338,3 +338,37 @@ mainKMeans:
     
     # Inicializar coordenadas centroids aleatorios
     jal initializeCentroids
+
+kmeansLoop:
+    
+    # Condicoes de paragem
+    beqz s11, kmeansEnd             # Fez L iteracoes
+    jal CompareCentroids
+    beq a4, zero, kmeansEnd         # Centroids estabilizaram
+    
+    # Limpar pontos
+    jal cleanScreen2
+    
+    # Atualizar agrupamentos
+    jal assignCluster
+
+    # Pintar pontos e centroides
+    jal printClusters
+    jal printCentroids
+    
+    # Guardar em oldCentroids 
+    jal CopyCentroids
+
+    # Recalcular centroides
+    jal calculateCentroids
+    
+    addi s11, s11, -1              # Decrementar iteracoes
+    
+    j kmeansLoop
+
+kmeansEnd:
+
+    # Retornar mainKMeans
+    lw ra, 0(sp)             
+    addi sp, sp, 4
+    jr ra
