@@ -6,10 +6,10 @@
     bgt t0, x0, 12
 
     jal mainSingleCluster
-    j end_program
+    j endProgram
     jal mainKmeans
 
-end_program:
+endProgram:
 
     li a7, 10
     ecall
@@ -126,7 +126,7 @@ calcentroidOuterLoop:
 
 calcCentroidInnerLoop:
 
-    beq t0, x0, calcCentroidIEndInner
+    beq t0, x0, calcCentroidEndInner
     lw t2, 0(s4)
     bne t2, t1, NextPoint
 
@@ -143,7 +143,7 @@ NextPoint:
     addi t0, t0, -1
     j calcCentroidInnerLoop
 
-calcCentroidIEndInner:
+calcCentroidEndInner:
 
     beqz t5, calcCentroidRandomInit
     divu s1, s1, t5
@@ -352,7 +352,7 @@ assignClusterLoop:
 
 assignClusterEnd:
 
-    lw ra, 0(sp)             
+    lw ra, 0(sp)
     addi sp, sp, 4
     jr ra
 
@@ -408,7 +408,7 @@ Equal:
 
     li a4, 0
     jr ra
-        
+
 cleanScreenOptimized:
 
     addi sp, sp, -4
@@ -420,4 +420,4 @@ cleanScreenOptimized:
 
     lw ra, 0(sp)
     addi sp, sp, 4
-    jr ra                    
+    jr ra
