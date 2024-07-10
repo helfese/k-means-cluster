@@ -128,7 +128,7 @@ calcCentroidInnerLoop:
 
     beq t0, x0, calcCentroidEndInner
     lw t2, 0(s4)
-    bne t2, t1, NextPoint
+    bne t2, t1, nextPoint
 
     lw t3, 0(s0)
     add s1, s1, t3
@@ -136,7 +136,7 @@ calcCentroidInnerLoop:
     add s2, s2, t4
     addi t5, t5, 1
 
-NextPoint:
+nextPoint:
 
     addi s0, s0, 8
     addi s4, s4, 4
@@ -393,14 +393,14 @@ compareCentroidsLoop:
     beq t1, s2, Equal
     lw t2, 0(t0)
     lw t3, 0(s1)
-    bne t2, t3, NotEqual
+    bne t2, t3, notEqual
 
     addi t0, t0, 4
     addi s1, s1, 4
     addi t1, t1, 1
     j compareCentroidsLoop
 
-NotEqual:
+notEqual:
 
     jr ra
 
